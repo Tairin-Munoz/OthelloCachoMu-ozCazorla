@@ -33,15 +33,18 @@ class TableroOthello(Entorno):
         if agente.estado.movidas:
             agente.programa()
         else:
-            # Si no hay movimientos, es el fin del juego
-            for a in self.get_agentes():
-                a.inhabilitar()
+            jugador_oponente = 3 - agente.estado.jugador
+            if self._get_valid_moves(agente.estado.tablero, jugador_oponente):
+                agente.set_acciones(None)
+            else:
+                for a in self.get_agentes():
+                    a.inhabilitar()
 
     def ejecutar(self, agente):
         movida = agente.get_acciones()
         self.juegoActual = agente.getResultado(self.juegoActual, movida)
         
-        nombre_jugador = "Negro (1)" if isinstance(agente, HumanoOthello) else "IA (2)"
+        nombre_jugador = getattr(agente, "nombre", agente.__class__.__name__)
         print(f"\n--- Jugador {nombre_jugador} elige {movida} ---")
         self.mostrar_tablero(self.juegoActual.tablero)
         

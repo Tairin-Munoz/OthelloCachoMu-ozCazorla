@@ -1,0 +1,5 @@
+game_id,agente_a,evaluacion_a,profundidad_a,agente_b,evaluacion_b,profundidad_b,black_agent,resultado_a,fichas_a,fichas_b,diferencia_fichas_a,tiempo_promedio_mov_a,tiempo_promedio_mov_b,nodos_evaluados_a,nodos_evaluados_b,nodos_por_segundo_a,nodos_por_segundo_b
+1,base,base,4,posicional,posicional,4,base,victoria,57,7,50,0.5538045424239526,0.8636715740735612,50214,58482,2747.6054222601683,2507.897753058984
+2,base,base,4,posicional,posicional,4,posicional,derrota,24,40,-16,0.4500953413785439,0.5424010870964623,38620,43570,2958.7601014759534,2591.226132107265
+3,base,base,5,posicional,posicional,5,base,derrota,19,45,-26,2.7290974966672366,1.7902618233340035,249086,147949,3042.3488632436533,2754.699490909746
+4,base,base,5,posicional,posicional,5,posicional,victoria,41,23,18,1.4786874333335922,2.2428272766667456,139663,221834,3148.3552428913263,3296.939868528889

@@ -1,0 +1,28 @@
+CACHO — Base vs Mejorada
+Partidas completas: 100
+Victorias Base: 46 (46.0%)
+Victorias Mejorada: 54 (54.0%)
+Empates: 0 (0.0%)
+Puntaje promedio Base: 39.42
+Puntaje promedio Mejorada: 45.49
+Diferencia promedio Base-Mejorada: -6.07
+IC bootstrap 95% (semilla 2025) para diferencia media de puntaje Base-Mejorada: -11.44–-0.63.
+Tiempo promedio/decisión Base: 0.029559 s
+Tiempo promedio/decisión Mejorada: 0.082600 s
+H0: en partidas decisivas, P(Base gana)=P(Mejorada gana)=0.5.
+H1: las probabilidades de victoria son distintas (prueba binomial exacta bilateral).
+n decisivas=100; IC Wilson 95% de victoria Base=36.6%–55.7%; p=0.484118; alfa=0.05.
+Interpretación: no se rechaza H0; la diferencia observada no demuestra superioridad.
+Bootstrap de puntajes: el IC de Base-Mejorada no contiene cero, compatible con mayor puntaje medio de MEJORADA en esta muestra; esto no equivale a una diferencia significativa en tasa de victorias ni demuestra superioridad general.
+El contraste ignora empates y la tasa de empates se informa por separado.
+
+OTHELLO — Base vs Posicional
+Partidas completas: 4
+Profundidad 4: 2 partidas; score Base=50.0%, Posicional=50.0%; Δfichas Base=17.00; tiempo/mov Base=0.5019s, Posicional=0.7030s.
+Profundidad 5: 2 partidas; score Base=50.0%, Posicional=50.0%; Δfichas Base=-4.00; tiempo/mov Base=2.1039s, Posicional=2.0165s.
+Victorias Base: 2; derrotas: 2; empates: 0.
+H0: en partidas decisivas, P(Base gana)=P(Posicional gana)=0.5.
+H1: las probabilidades de victoria son distintas (prueba binomial exacta bilateral).
+n decisivas=4; IC Wilson 95% Base=15.0%–85.0%; p=1.000000; alfa=0.05.
+Con solo dos partidas por profundidad, los resultados por profundidad son descriptivos; no permiten concluir superioridad estadística.
+Interpretación global: no se rechaza H0; la diferencia observada no demuestra superioridad.

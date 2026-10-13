@@ -1,6 +1,7 @@
 from AgenteIA.AgenteJugador import AgenteJugador, ElEstado
 from collections import Counter
 from itertools import combinations_with_replacement
+from functools import lru_cache
 from math import factorial
 
 # ============================================================
@@ -16,6 +17,22 @@ NOMBRES_CAT = {
 }
 
 TODOS_LOS_ESTADOS = list(combinations_with_replacement(range(1, 7), 5))
+
+
+def distribucion_dados(n_dados):
+    """Distribución exacta de multiconjuntos de n dados justos."""
+    total = 6 ** n_dados
+    distribucion = {}
+    for tirada in combinations_with_replacement(range(1, 7), n_dados):
+        cuenta = Counter(tirada)
+        formas = factorial(n_dados)
+        for frecuencia in cuenta.values():
+            formas //= factorial(frecuencia)
+        distribucion[tirada] = formas / total
+    return distribucion
+
+
+DISTRIBUCION_CINCO_DADOS = distribucion_dados(5)
 
 # ============================================================
 # UTILIDADES
@@ -55,6 +72,50 @@ def probabilidad_tirada(dados_actuales, dados_a_tirar):
         estado = normalizar(list(dados_fijos) + list(combo))
         probas[estado] = probas.get(estado, 0) + formas / total
     return probas
+
+
+@lru_cache(maxsize=None)
+def valor_esperado_categoria(categoria, dados, tiradas_restantes):
+    """Máximo puntaje esperado para una sola categoría con hasta n relanzamientos."""
+    valor_actual = puntuar(categoria, dados)
+    if tiradas_restantes <= 0:
+        return float(valor_actual)
+
+    # Retener cada submulticonjunto distinto evita recalcular máscaras equivalentes
+    # cuando los dados repetidos tienen el mismo valor.
+    opciones_retener = {()}
+    for dado in dados:
+        opciones_retener |= {opcion + (dado,) for opcion in tuple(opciones_retener)}
+
+    mejor_valor = float(valor_actual)
+    for retenidos in opciones_retener:
+        frecuencia_retenida = Counter(retenidos)
+        indices_retenidos = set()
+        usados = Counter()
+        for indice, dado in enumerate(dados):
+            if usados[dado] < frecuencia_retenida[dado]:
+                indices_retenidos.add(indice)
+                usados[dado] += 1
+        indices_tirar = frozenset(set(range(5)) - indices_retenidos)
+        if not indices_tirar:
+            continue
+        esperado = sum(
+            probabilidad * valor_esperado_categoria(
+                categoria, nueva_tirada, tiradas_restantes - 1
+            )
+            for nueva_tirada, probabilidad in probabilidad_tirada(dados, indices_tirar).items()
+        )
+        mejor_valor = max(mejor_valor, esperado)
+    return mejor_valor
+
+
+@lru_cache(maxsize=None)
+def valor_esperado_categoria_desde_inicio(categoria):
+    """Esperanza de la estrategia óptima para la categoría desde cinco dados nuevos."""
+    return sum(
+        probabilidad * valor_esperado_categoria(categoria, dados, 3)
+        for dados, probabilidad in DISTRIBUCION_CINCO_DADOS.items()
+    )
 
 def acciones_reservar(dados):
     acciones = set()
@@ -102,30 +163,29 @@ class AgenteCacho(AgenteJugador):
 
     def getResultado(self, estado, m):
         """Aplica una acción y devuelve el nuevo estado."""
-        # tablero = dict(estado.tablero)
-        tablero = self._copiar_tablero(estado.tablero)  # ← antes era dict(estado.tablero)
-        tablero['usadas'] = [set(estado.tablero['usadas'][0]),
-                             set(estado.tablero['usadas'][1])]
-        tablero['puntajes'] = list(estado.tablero['puntajes'])
-        tablero['dados'] = estado.tablero['dados']
-        tablero['tiradas_restantes'] = estado.tablero['tiradas_restantes']
+        tablero = self._copiar_tablero(estado.tablero)
 
         tipo, param = m
         turno = estado.jugador
-        nuevo_jugador = 1 - turno
 
         if tipo == 'anotar':
             cat = param
+            if cat not in CATEGORIAS or cat in tablero['usadas'][turno]:
+                raise ValueError(f"Categoría no disponible: {cat}")
             pts = puntuar(cat, tablero['dados'])
             tablero['puntajes'][turno] += pts
             tablero['usadas'][turno].add(cat)
             tablero['dados'] = (1, 1, 1, 1, 1)
             tablero['tiradas_restantes'] = 3
             tablero['ronda'] = estado.tablero.get('ronda', 0) + 1
+            nuevo_jugador = 1 - turno
         elif tipo == 'tirar':
-            # La tirada real la resuelve el entorno; aquí simulamos
-            # la mejor tirada esperada no aplica (es un nodo de azar)
+            if not param or tablero['tiradas_restantes'] <= 0:
+                raise ValueError("No quedan tiradas o no se seleccionaron dados")
             tablero['tiradas_restantes'] -= 1
+            nuevo_jugador = turno
+        else:
+            raise ValueError(f"Acción desconocida: {tipo}")
 
         return ElEstado(
             jugador=nuevo_jugador,
@@ -145,20 +205,55 @@ class AgenteCacho(AgenteJugador):
     # --------- Función de evaluación para hojas ---------
 
     def funcion_evaluacion(self, estado):
-        """Heurística: puntaje actual + valor esperado de categorías restantes."""
-        jugador = estado.jugador
-        oponente = 1 - jugador
+        """Mantiene la heurística base del docente para comparación."""
+        return self.funcion_evaluacion_base(estado)
+
+    def funcion_evaluacion_base(self, estado):
+        """Evaluación docente: E=(pMAX+0.6*Vfuturo,MAX)-pMIN."""
         p = estado.tablero['puntajes']
-        restantes = [c for c in CATEGORIAS if c not in estado.tablero['usadas'][jugador]]
-        futuro = sum(self._valor_esperado_cat(c) for c in restantes)
-        return (p[jugador] + futuro * 0.6) - p[oponente]
+        restantes_max = [c for c in CATEGORIAS if c not in estado.tablero['usadas'][0]]
+        futuro_max = sum(self._valor_esperado_cat(c) for c in restantes_max)
+        if self.testTerminal(estado):
+            return p[0] - p[1]
+        return (p[0] + futuro_max * 0.6) - p[1]
+
+    def funcion_evaluacion_mejorada(self, estado):
+        """
+        Expectativa dinámica exacta por categoría, con distribución real de dados,
+        puntuación y relanzamientos restantes. Cada categoría se estima por separado,
+        como en la heurística base; su suma es potencial y no una garantía conjunta.
+        """
+        p = estado.tablero['puntajes']
+        if self.testTerminal(estado):
+            return p[0] - p[1]
+
+        futuros = [0.0, 0.0]
+        for jugador in (0, 1):
+            restantes = [c for c in CATEGORIAS if c not in estado.tablero['usadas'][jugador]]
+            if jugador == estado.jugador:
+                futuros[jugador] = sum(
+                    valor_esperado_categoria(
+                        categoria,
+                        tuple(sorted(estado.tablero['dados'])),
+                        estado.tablero['tiradas_restantes'],
+                    )
+                    for categoria in restantes
+                )
+            else:
+                futuros[jugador] = sum(
+                    valor_esperado_categoria_desde_inicio(categoria)
+                    for categoria in restantes
+                )
+        return (p[0] + 0.6 * futuros[0]) - (p[1] + 0.6 * futuros[1])
 
     def _valor_esperado_cat(self, categoria):
         if not hasattr(self, '_cache_ve'):
             self._cache_ve = {}
         if categoria not in self._cache_ve:
-            total = sum(puntuar(categoria, e) for e in TODOS_LOS_ESTADOS)
-            self._cache_ve[categoria] = total / len(TODOS_LOS_ESTADOS)
+            self._cache_ve[categoria] = sum(
+                probability * puntuar(categoria, dados)
+                for dados, probability in DISTRIBUCION_CINCO_DADOS.items()
+            )
         return self._cache_ve[categoria]
 
     def _copiar_tablero(self, tablero):

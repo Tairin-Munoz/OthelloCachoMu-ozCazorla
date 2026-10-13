@@ -14,8 +14,9 @@ class EntornoCacho(Entorno):
       - jugador 1 → humano (MIN)
     """
 
-    def __init__(self):
+    def __init__(self, seed=None):
         Entorno.__init__(self)
+        self.rng = random.Random(seed)
         self.juegoActual = self._estado_inicial()
         self.historial_ia = []       # log visible de acciones de la IA
         self.log_completo = []       # log técnico de todas las acciones
@@ -94,9 +95,12 @@ class EntornoCacho(Entorno):
         # -------- TIRAR --------
         if tipo == 'tirar':
             indices = param
+            if (not indices or tablero['tiradas_restantes'] <= 0
+                    or any(index not in range(5) for index in indices)):
+                raise ValueError("Selección de dados no válida para esta tirada")
             dados = list(dados_antes)
             for i in indices:
-                dados[i] = random.randint(1, 6)
+                dados[i] = self.rng.randint(1, 6)
             nuevos = normalizar(dados)
 
             if turno == 0:
@@ -173,7 +177,7 @@ class EntornoCacho(Entorno):
             )
 
     def _tirar_5(self):
-        return normalizar([random.randint(1, 6) for _ in range(5)])
+        return normalizar([self.rng.randint(1, 6) for _ in range(5)])
 
     # ============================================================
     # CONSULTAS

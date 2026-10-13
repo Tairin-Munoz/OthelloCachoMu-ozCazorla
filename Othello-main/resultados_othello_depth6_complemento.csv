@@ -1,0 +1,2 @@
+game_id,agente_a,evaluacion_a,profundidad_a,agente_b,evaluacion_b,profundidad_b,black_agent,resultado_a,fichas_a,fichas_b,diferencia_fichas_a,tiempo_promedio_mov_a,tiempo_promedio_mov_b,nodos_evaluados_a,nodos_evaluados_b,nodos_por_segundo_a,nodos_por_segundo_b
+2,base,base,6,posicional,posicional,6,posicional,derrota,27,37,-10,12.830570336666764,12.185861120001451,1135326,1019315,2949.533731314355,2788.245026926962
